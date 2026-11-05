@@ -825,14 +825,22 @@ function renderList() {
       if (!a.favorite && b.favorite) return 1;
     }
     if (sortBy === 'name') {
-      const na = (a.productType || a.pokeType || '').toLowerCase();
-      const nb = (b.productType || b.pokeType || '').toLowerCase();
+      const na = (a.pokeType || a.productType || '').toLowerCase();
+      const nb = (b.pokeType || b.productType || '').toLowerCase();
       return na.localeCompare(nb);
     }
     if (sortBy === 'price-desc') return (parseFloat(b.pricePaid) || 0) - (parseFloat(a.pricePaid) || 0);
     if (sortBy === 'price-asc') return (parseFloat(a.pricePaid) || 0) - (parseFloat(b.pricePaid) || 0);
-    if (sortBy === 'date-asc') return (a.date || '').localeCompare(b.date || '');
-    return (b.date || '').localeCompare(a.date || '');
+    if (sortBy === 'date-asc') {
+      const da = a.date || '9999-99-99';
+      const db = b.date || '9999-99-99';
+      if (da !== db) return da.localeCompare(db);
+      return (a.id || 0) - (b.id || 0);
+    }
+    // date-desc (newest)
+    const da = a.date || '';
+    const db = b.date || '';
+    if (da !== db) return db.localeCompare(da);
     return (b.id || 0) - (a.id || 0);
   });
 
