@@ -35,8 +35,18 @@ textarea { min-height: 90px; resize: vertical; }
 @media (min-width: 401px) {
   .filter-row select, .action-row button, .action-row select { font-size: 0.75rem; padding: 6px 4px; }
 }
+@media (orientation: landscape) {
+  #listContainer.grid-mode { grid-template-columns: 1fr 1fr 1fr; }
+  .export-bar { padding: 6px 12px; }
+  .export-bar button { padding: 6px 4px; font-size: 0.8rem; }
+  .card { padding: 12px; }
+}
 .btn:active { opacity: 0.85; }
-.card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); border: 1px solid var(--border); }
+.card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); border: 1px solid var(--border); min-width: 0; }
+#listContainer.grid-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#listContainer.grid-mode .card { padding: 10px; margin-bottom: 0; }
+#listContainer.grid-mode .card-title { font-size: 0.95rem; }
+#listContainer.grid-mode .card-sub { font-size: 0.75rem; word-break: break-word; }
 .card-header { display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; }
 .card-title { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; color: var(--text); }
 .card-sub { font-size: 0.85rem; color: #aaa; margin-top: 2px; }
@@ -755,9 +765,8 @@ function startEdit(id) {
 
 function renderList() {
   const container = document.getElementById('listContainer');
+  container.classList.toggle('grid-mode', displayMode === 'grid');
   container.style.display = displayMode === 'grid' ? 'grid' : 'block';
-  container.style.gridTemplateColumns = displayMode === 'grid' ? '1fr 1fr' : '';
-  container.style.gap = displayMode === 'grid' ? '8px' : '';
   const totalsBar = document.getElementById('totalsBar');
   const query = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
   const filterCond = document.getElementById('filterCondition')?.value || '';
