@@ -1,1 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pokémon Non-TCG Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pokémon Tracker">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23FFCC00'/%3E%3Ccircle cx='50' cy='50' r='20' fill='%233B4CCA'/%3E%3C/svg%3E">
+<style>
+:root { --poke-blue: #5a6bff; --poke-yellow: #FFCC00; --bg: #121212; --card: #1e1e1e; --text: #e8e8e8; --border: #333; --input-bg: #2a2a2a; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 80px; }
+header { background: #1a237e; color: white; padding: 16px 16px 12px; text-align: center; }
+header h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+header p { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.9; }
+.sticky-top { position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.tabs { display: flex; background: #1e1e1e; border-bottom: 1px solid var(--border); }
+.tabs button { flex: 1; padding: 14px; border: none; background: #1e1e1e; font-size: 1rem; font-weight: 600; color: #aaa; cursor: pointer; }
+.tabs button.active { color: var(--poke-yellow); border-bottom: 3px solid var(--poke-yellow); }
+.container { padding: 16px; max-width: 600px; margin: 0 auto; }
+.form-group { margin-bottom: 16px; position: relative; }
+label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.95rem; color: var(--text); }
+input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; background: var(--input-bg); color: var(--text); }
+textarea { min-height: 90px; resize: vertical; }
+.btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer; margin-top: 8px; }
+.btn-primary { background: var(--poke-yellow); color: #111; }
+.btn-secondary { background: var(--poke-blue); color: white; }
+.btn-danger { background: #ff3b30; color: white; }
+@media (max-width: 400px) {
+  .filter-row select, .action-row button, .action-row select { font-size: 0.65rem; padding: 5px 2px; }
+}
+@media (min-width: 401px) {
+  .filter-row select, .action-row button, .action-row select { font-size: 0.75rem; padding: 6px 4px; }
+}
+.btn:active { opacity: 0.85; }
+.card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); border: 1px solid var(--border); }
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; }
+.card-title { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; color: var(--text); }
+.card-sub { font-size: 0.85rem; color: #aaa; margin-top: 2px; }
+.card-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: none; }
+.card.open .card-body { display: block; }
+.empty { text-align: center; color: #888; padding: 40px 20px; }
+.export-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e1e1e; padding: 8px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px; z-index: 999; }
+.export-bar button { flex: 1; min-width: 70px; margin: 0; padding: 8px 4px; font-size: 0.85rem; }
+.search-box { margin-bottom: 16px; }
+#editBanner { background: #3d2f00; border: 1px solid #665500; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; display: none; font-weight: 600; text-align: center; color: #ffd54f; }
+.suggestions { position: absolute; top: 100%; left: 0; right: 0; background: #2a2a2a; border: 1px solid var(--border); border-radius: 10px; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: none; }
+.suggestions div { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #333; color: var(--text); }
+.suggestions div:hover { background: #3a3a3a; }
+.poke-preview { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.poke-preview img { width: 56px; height: 56px; object-fit: contain; background: #2a2a2a; border-radius: 8px; }
+.poke-preview a { font-size: 0.85rem; color: var(--poke-yellow); text-decoration: none; }
+.price-row { display: flex; gap: 12px; }
+.price-row .form-group { flex: 1; }
+</style>
+</head>
+<body>
+<button id="backToTop" onclick="window.scrollTo({top:0, behavior:'smooth'})" style="display:none; position:fixed; top:70px; left:12px; z-index:150; width:36px; height:36px; border-radius:50%; background:#3d5a9e; color:#fff; border:none; font-size:1.2rem; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.4);">↑</button>
+<header style="position:relative;">
+  <h1>Pokémon Non-TCG</h1>
+  <p>Licensed products tracker</p>
+  <button onclick="showHelp()" style="position:absolute; top:12px; right:12px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:1.1rem; font-weight:700; cursor:pointer;">?</button>
+</header>
 
+<div class="tabs">
+  <button id="tabAdd" class="active" onclick="showTab('add')">+ Add Item</button>
+  <button id="tabList" onclick="showTab('list')">My Collection (<span id="count">0</span>)</button>
+</div>
+</div>
+
+<div id="addView" class="container">
+  <div id="editBanner">Editing existing entry</div>
+  <div class="form-group">
+    <label>Product type</label>
+    <input type="text" id="productType" placeholder="e.g. Figure, Plush, Apparel, Game..." oninput="showFieldSuggestions('productType', this.value)" onfocus="showFieldSuggestions('productType', this.value)" autocomplete="off">
+    <div id="suggestions-productType" class="suggestions"></div>
+  </div>
+  <div class="form-group">
+    <label>Set</label>
+    <input type="text" id="set" placeholder="e.g. 25th Anniversary, Battle Styles..." oninput="showFieldSuggestions('set', this.value)" onfocus="showFieldSuggestions('set', this.value)" autocomplete="off">
+    <div id="suggestions-set" class="suggestions"></div>
+  </div>
+  <div class="form-group">
+    <label>Year released</label>
+    <input type="text" id="year" placeholder="e.g. 2021" oninput="showFieldSuggestions('year', this.value)" onfocus="showFieldSuggestions('year', this.value)" autocomplete="off">
+    <div id="suggestions-year" class="suggestions"></div>
+  </div>
+  <div class="form-group">
+    <label>Pokémon (search or type)</label>
+    <input type="text" id="pokeType" placeholder="Start typing a Pokémon name..." oninput="searchPokemon(this.value)" onfocus="searchPokemon(this.value)" autocomplete="off">
+    <div id="suggestions" class="suggestions"></div>
+    <div class="poke-preview" id="pokePreview"></div>
+  </div>
+  <div class="form-group">
+    <label>Location / Storage</label>
+    <input type="text" id="location" placeholder="e.g. Shelf A, Safe, With grader..." oninput="showFieldSuggestions('location', this.value)" onfocus="showFieldSuggestions('location', this.value)" autocomplete="off">
+    <div id="suggestions-location" class="suggestions"></div>
+  </div>
+  <div class="price-row">
+    <div class="form-group">
+      <label>Price paid</label>
+      <div style="display:flex; align-items:center; background:#2c2c2e; border-radius:10px; border:1px solid var(--border);">
+        <span style="padding:0 8px; color:#888;">$</span>
+        <input type="text" id="pricePaid" placeholder="0.00" style="border:none; background:transparent; flex:1; padding:12px 12px 12px 0;">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Price sold</label>
+      <div style="display:flex; align-items:center; background:#2c2c2e; border-radius:10px; border:1px solid var(--border);">
+        <span style="padding:0 8px; color:#888;">$</span>
+        <input type="text" id="priceSold" placeholder="0.00" oninput="toggleSoldDate()" style="border:none; background:transparent; flex:1; padding:12px 12px 12px 0;">
+      </div>
+    </div>
+  </div>
+  <div class="form-group" id="soldDateGroup" style="display:none;">
+    <label>Sold date</label>
+    <input type="date" id="soldDate">
+  </div>
+  <div class="form-group">
+    <label>Status</label>
+    <select id="status">
+      <option value="Owned">Owned</option>
+      <option value="For Sale">For Sale</option>
+      <option value="Sold">Sold</option>
+      <option value="Wanted">Wanted</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Tags</label>
+    <div style="position:relative;">
+      <input type="text" id="tags" placeholder="Type to add tags..." oninput="filterFormTagSuggestions()" onkeydown="if(event.key==='Enter'){addFormTagFromInput(); event.preventDefault();}" autocomplete="off">
+      <div id="formTagSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; background:#2c2c2e; border:1px solid var(--border); border-radius:8px; max-height:150px; overflow-y:auto; z-index:50;"></div>
+    </div>
+    <div id="formSelectedTags" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;"></div>
+  </div>
+  <div class="form-group">
+    <label>Condition</label>
+    <select id="condition">
+      <option value="">—</option>
+      <option value="Pristine / Gem Mint">Pristine / Gem Mint</option>
+      <option value="Mint">Mint</option>
+      <option value="Near Mint (NM)">Near Mint (NM)</option>
+      <option value="Lightly Played (LP)">Lightly Played (LP)</option>
+      <option value="Moderately Played (MP)">Moderately Played (MP)</option>
+      <option value="Heavily Played (HP)">Heavily Played (HP)</option>
+      <option value="Damaged / Poor">Damaged / Poor</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Graded</label>
+    <select id="graded" onchange="toggleGrade()">
+      <option value="">—</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+      <option value="Not Grading">Not Grading</option>
+      <option value="To Grade">To Grade</option>
+    </select>
+  </div>
+  <div class="form-group" id="gradeGroup" style="display:none;">
+    <label>Grade</label>
+    <input type="text" id="grade" placeholder="e.g. PSA 10, CGC 9.5, BGS 9" oninput="showFieldSuggestions('grade', this.value)" onfocus="showFieldSuggestions('grade', this.value)" autocomplete="off">
+    <div id="suggestions-grade" class="suggestions"></div>
+  </div>
+  <div class="form-group" id="outForGradingGroup" style="display:none;">
+    <label>Out for grading</label>
+    <select id="outForGrading">
+      <option value="">—</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Photo – Front</label>
+    <input type="file" id="photoFront" accept="image/*" capture="environment">
+    <div id="photoFrontPreview" style="margin-top:8px;"></div>
+  </div>
+  <div class="form-group">
+    <label>Photo – Back</label>
+    <input type="file" id="photoBack" accept="image/*" capture="environment">
+    <div id="photoBackPreview" style="margin-top:8px;"></div>
+  </div>
+  <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+    <input type="checkbox" id="favorite" style="width:auto;">
+    <label for="favorite" style="margin:0;">Favorite ★</label>
+  </div>
+  <div class="form-group">
+    <label>Description</label>
+    <textarea id="description" placeholder="Any notes, condition, where purchased, etc."></textarea>
+  </div>
+  <button class="btn btn-primary" id="saveBtn" onclick="saveItem()">Save Entry</button>
+  <button class="btn btn-secondary" id="cancelEditBtn" style="display:none;" onclick="cancelEdit()">Cancel Edit</button>
+</div>
+
+<div id="listView" class="container" style="display:none;">
+  <div id="totalsBar" style="background:#1e1e1e; border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px; font-size:0.9rem; display:flex; flex-wrap:wrap; gap:12px;"></div>
+  <div style="display:flex; gap:6px; margin-bottom:8px;">
+    <div class="search-box" style="position:relative; flex:1;">
+      <input type="text" id="searchInput" placeholder="Search..." oninput="renderList(); toggleSearchClear();" onkeydown="if(event.key==='Enter'){this.blur();}" style="padding-right:28px;">
+      <button id="searchClear" onclick="clearSearch()" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:#888; font-size:1rem; display:none; cursor:pointer;">✕</button>
+    </div>
+    <div style="position:relative; flex:1;">
+      <input type="text" id="tagSearchInput" placeholder="Search tags..." oninput="filterTagSuggestions()" onkeydown="if(event.key==='Enter'){addTagFromInput();}" style="padding-right:28px;">
+      <button id="tagSearchClear" onclick="clearTagSearch()" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:#888; font-size:1rem; display:none; cursor:pointer;">✕</button>
+      <div id="tagSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; background:#2c2c2e; border:1px solid var(--border); border-radius:8px; max-height:150px; overflow-y:auto; z-index:50;"></div>
+    </div>
+  </div>
+  <div id="selectedTags" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;"></div>
+  <div class="filter-row" style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
+    <select id="filterCondition" onchange="renderList()" style="flex:1; min-width:80px; padding:6px 4px; font-size:0.75rem;">
+      <option value="">All Cond.</option>
+      <option value="Pristine / Gem Mint">Pristine / Gem Mint</option>
+      <option value="Mint">Mint</option>
+      <option value="Near Mint (NM)">Near Mint (NM)</option>
+      <option value="Lightly Played (LP)">Lightly Played (LP)</option>
+      <option value="Moderately Played (MP)">Moderately Played (MP)</option>
+      <option value="Heavily Played (HP)">Heavily Played (HP)</option>
+      <option value="Damaged / Poor">Damaged / Poor</option>
+    </select>
+    <select id="filterGraded" onchange="renderList()" oninput="renderList()" onblur="renderList()" style="flex:1; min-width:70px; padding:6px 4px; font-size:0.75rem;">
+      <option value="">Graded</option>
+      <option value="Yes">Graded: Yes</option>
+      <option value="No">Graded: No</option>
+    </select>
+    <select id="filterStatus" onchange="renderList()" style="flex:1; min-width:70px; padding:6px 4px; font-size:0.75rem;">
+      <option value="">Status</option>
+      <option value="Owned">Owned</option>
+      <option value="For Sale">For Sale</option>
+      <option value="Sold">Sold</option>
+      <option value="Wanted">Wanted</option>
+    </select>
+    <select id="groupBy" onchange="renderList()" oninput="renderList()" onblur="renderList()" style="flex:1; min-width:80px; padding:6px 4px; font-size:0.75rem;">
+      <option value="">No Group</option>
+      <option value="pokeType">Group by Pokémon</option>
+      <option value="evolution">Group by Evolution</option>
+      <option value="set">Group by Set</option>
+      <option value="favorite">Group by Favorites</option>
+    </select>
+    <select id="sortBy" onchange="renderList()" oninput="renderList()" onblur="renderList()" style="flex:1; min-width:90px; padding:6px 4px; font-size:0.75rem;">
+      <option value="date-desc">Newest</option>
+      <option value="date-asc">Oldest first</option>
+      <option value="name">Name A-Z</option>
+      <option value="price-desc">Price paid high-low</option>
+      <option value="price-asc">Price paid low-high</option>
+      <option value="favorite">Favorites first</option>
+    </select>
+  </div>
+  <div class="action-row" style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:nowrap;">
+    <button class="btn btn-secondary btn-small" onclick="selectAll()" style="flex:1; padding:6px 4px; font-size:0.7rem;">Select</button>
+    <button class="btn btn-secondary btn-small" onclick="deselectAll()" style="flex:1; padding:6px 4px; font-size:0.7rem;">Deselect</button>
+    <button class="btn btn-secondary btn-small" onclick="expandAll()" style="flex:1; padding:6px 4px; font-size:0.7rem;">Expand</button>
+    <button class="btn btn-secondary btn-small" onclick="collapseAll()" style="flex:1; padding:6px 4px; font-size:0.7rem;">Collapse</button>
+  </div>
+  <div class="action-row" style="display:flex; gap:4px; margin-bottom:8px;">
+    <button class="btn btn-small" onclick="exportSelected()" style="flex:1; background:#4a6fa5; color:#fff; padding:6px 2px; font-size:0.65rem;">Export Sel.</button>
+    <button class="btn btn-small" onclick="deleteSelected()" style="flex:1; background:#4a6fa5; color:#fff; padding:6px 2px; font-size:0.65rem;">Delete Sel.</button>
+    <select id="displayMode" onchange="setDisplayMode(this.value)" style="flex:1; padding:6px 2px; border-radius:8px; background:#3d5a9e; color:#fff; border:none; font-size:0.65rem; font-weight:600; text-align:center;">
+      <option value="list">List</option>
+      <option value="grid">Grid</option>
+    </select>
+  </div>
+  <div id="listContainer"></div>
+</div>
+<div id="helpModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#1e1e1e; border-radius:14px; padding:20px; max-width:360px; width:100%; max-height:80vh; overflow-y:auto; border:1px solid var(--border);">
+    <h2 style="margin:0 0 12px; font-size:1.1rem;">About this app</h2>
+    <p style="margin:0 0 6px; font-size:0.9rem; line-height:1.4;"><strong>How to set up</strong></p>
+    <p style="margin:0 0 6px; font-size:0.85rem; line-height:1.4;">Open this link: <strong>pokemontrackershared.netlify.app</strong></p>
+    <p style="margin:0 0 6px; font-size:0.85rem; line-height:1.4;"><strong>iPhone:</strong> Open in Safari → Share → Add to Home Screen.</p>
+    <p style="margin:0 0 6px; font-size:0.85rem; line-height:1.4;"><strong>Android:</strong> Open in Chrome → three-dot menu → Add to Home screen or Install app.</p>
+    <p style="margin:0 0 10px; font-size:0.85rem; line-height:1.4;">This makes it open like an app. You can also use it as a regular website, but data is less reliable that way. Always Export a backup.</p>
+    <p style="margin:0 0 10px; font-size:0.9rem; line-height:1.4;">This is a simple tool for casually tracking Pokémon items that are not in the big name apps. It is basically an Excel sheet that is easier to fill out on your phone.</p>
+    <p style="margin:0 0 10px; font-size:0.9rem; line-height:1.4;">Everything you enter is stored only on this phone. It is not saved online. The data normally stays as long as you keep using the app, but it can be lost if you clear browser data, the phone runs low on storage, or you do not open the app for a long time.</p>
+    <p style="margin:0 0 10px; font-size:0.9rem; line-height:1.4;">Use Export to save a copy of your collection. Use Import to bring it back after an update or on a new phone. This is the only reliable backup.</p>
+    <p style="margin:0 0 10px; font-size:0.9rem; line-height:1.4;">If someone shares their Excel file with you, tap Import and select it. You will be asked whether to add their items to yours or replace everything. Export your own data first so you do not lose it.</p>
+    <p style="margin:0 0 10px; font-size:0.9rem; line-height:1.4;">Photos are compressed so they fit in the export file. They are meant as a quick reference, not for judging condition. Use the Condition field for that.</p>
+    <p style="margin:0 0 10px; font-size:0.9rem; line-height:1.4;">Tap + Add Item to enter something. Tap My Collection to see, search, or edit what you have.</p>
+    <p style="margin:0 0 10px; font-size:0.85rem; line-height:1.4; color:#aaa;">Hope you enjoy. This is my first attempt at an AI app, so please don't expect too much.</p>
+    <button class="btn btn-secondary btn-small" onclick="downloadApp()" style="width:auto; padding:6px 16px; margin-bottom:10px; font-size:0.8rem;">Download App</button>
+    <p style="margin:0 0 16px; font-size:0.8rem; line-height:1.4; color:#888;">I am not maintaining or adding features to this version unless it is majorly broken. If you have suggestions, I may see them and update my own version, but feel free to download this version and make your own edits. As always, be safe and scan files you download before opening them. (That's my dad's old internet safety voice in my head making sure to say that.)</p>
+    <button class="btn btn-secondary" onclick="hideHelp()" style="width:100%;">Close</button>
+  </div>
+</div>
+<div id="importModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#1e1e1e; border-radius:14px; padding:20px; max-width:320px; width:100%; border:1px solid var(--border);">
+    <p id="importMsg" style="margin:0 0 16px; font-size:0.95rem;"></p>
+    <div style="display:flex; gap:8px;">
+      <button id="importAddBtn" class="btn btn-secondary" style="flex:1;">Add</button>
+      <button id="importReplaceBtn" class="btn btn-danger" style="flex:1;">Replace</button>
+    </div>
+  </div>
+</div>
+
+<div class="export-bar">
+  <button class="btn btn-secondary" onclick="exportExcel()">Export</button>
+  <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import</button>
+  <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+</div>
+<input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const STORAGE_KEY = 'pokemonNonTCG_v1';
+
+const POKEMON_NAMES = [
+"Bulbasaur","Ivysaur","Venusaur","Charmander","Charmeleon","Charizard","Squirtle","Wartortle","Blastoise","Caterpie","Metapod","Butterfree","Weedle","Kakuna","Beedrill","Pidgey","Pidgeotto","Pidgeot","Rattata","Raticate","Spearow","Fearow","Ekans","Arbok","Pikachu","Raichu","Sandshrew","Sandslash","Nidoran♀","Nidorina","Nidoqueen","Nidoran♂","Nidorino","Nidoking","Clefairy","Clefable","Vulpix","Ninetales","Jigglypuff","Wigglytuff","Zubat","Golbat","Oddish","Gloom","Vileplume","Paras","Parasect","Venonat","Venomoth","Diglett","Dugtrio","Meowth","Persian","Psyduck","Golduck","Mankey","Primeape","Growlithe","Arcanine","Poliwag","Poliwhirl","Poliwrath","Abra","Kadabra","Alakazam","Machop","Machoke","Machamp","Bellsprout","Weepinbell","Victreebel","Tentacool","Tentacruel","Geodude","Graveler","Golem","Ponyta","Rapidash","Slowpoke","Slowbro","Magnemite","Magneton","Farfetch'd","Doduo","Dodrio","Seel","Dewgong","Grimer","Muk","Shellder","Cloyster","Gastly","Haunter","Gengar","Onix","Drowzee","Hypno","Krabby","Kingler","Voltorb","Electrode","Exeggcute","Exeggutor","Cubone","Marowak","Hitmonlee","Hitmonchan","Lickitung","Koffing","Weezing","Rhyhorn","Rhydon","Chansey","Tangela","Kangaskhan","Horsea","Seadra","Goldeen","Seaking","Staryu","Starmie","Mr. Mime","Scyther","Jynx","Electabuzz","Magmar","Pinsir","Tauros","Magikarp","Gyarados","Lapras","Ditto","Eevee","Vaporeon","Jolteon","Flareon","Porygon","Omanyte","Omastar","Kabuto","Kabutops","Aerodactyl","Snorlax","Articuno","Zapdos","Moltres","Dratini","Dragonair","Dragonite","Mewtwo","Mew","Chikorita","Bayleef","Meganium","Cyndaquil","Quilava","Typhlosion","Totodile","Croconaw","Feraligatr","Sentret","Furret","Hoothoot","Noctowl","Ledyba","Ledian","Spinarak","Ariados","Crobat","Chinchou","Lanturn","Pichu","Cleffa","Igglybuff","Togepi","Togetic","Natu","Xatu","Mareep","Flaaffy","Ampharos","Bellossom","Marill","Azumarill","Sudowoodo","Politoed","Hoppip","Skiploom","Jumpluff","Aipom","Sunkern","Sunflora","Yanma","Wooper","Quagsire","Espeon","Umbreon","Murkrow","Slowking","Misdreavus","Unown","Wobbuffet","Girafarig","Pineco","Forretress","Dunsparce","Gligar","Steelix","Snubbull","Granbull","Qwilfish","Scizor","Shuckle","Heracross","Sneasel","Teddiursa","Ursaring","Slugma","Magcargo","Swinub","Piloswine","Corsola","Remoraid","Octillery","Delibird","Mantine","Skarmory","Houndour","Houndoom","Kingdra","Phanpy","Donphan","Porygon2","Stantler","Smeargle","Tyrogue","Hitmontop","Smoochum","Elekid","Magby","Miltank","Blissey","Raikou","Entei","Suicune","Larvitar","Pupitar","Tyranitar","Lugia","Ho-Oh","Celebi","Treecko","Grovyle","Sceptile","Torchic","Combusken","Blaziken","Mudkip","Marshtomp","Swampert","Poochyena","Mightyena","Zigzagoon","Linoone","Wurmple","Silcoon","Beautifly","Cascoon","Dustox","Lotad","Lombre","Ludicolo","Seedot","Nuzleaf","Shiftry","Taillow","Swellow","Wingull","Pelipper","Ralts","Kirlia","Gardevoir","Surskit","Masquerain","Shroomish","Breloom","Slakoth","Vigoroth","Slaking","Nincada","Ninjask","Shedinja","Whismur","Loudred","Exploud","Makuhita","Hariyama","Azurill","Nosepass","Skitty","Delcatty","Sableye","gron","Meditite","Medicham","Electrike","Manectric","Plusle","Minun","Volbeat","Illumise","Roselia","Gulpin","Swalot","Carvanha","Sharpedo","Wailmer","Wailord","Numel","Camerupt","Torkoal","Spoink","Grumpig","Spinda","Trapinch","Vibrava","Flygon","Cacnea","Cacturne","Swablu","Altaria","Zangoose","Seviper","Lunatone","Solrock","Barboach","Whiscash","Corphish","Crawdaunt","Baltoy","Claydol","Lileep","Cradily","Anorith","Armaldo","Feebas","Milotic","Castform","Kecleon","Shuppet","Banette","Duskull","Dusclops","Tropius","Chimecho","Absol","Wynaut","Snorunt","Glalie","Spheal","Sealeo","Walrein","Clamperl","Huntail","Gorebyss","Relicanth","Luvdisc","Bagon","Shelgon","Salamence","Beldum","Metang","Metagross","Regirock","Regice","Registeel","Latias","Latios","Kyogre","Groudon","Rayquaza","Jirachi","Deoxys","Turtwig","Grotle","Torterra","Chimchar","Monferno","Infernape","Piplup","Prinplup","Empoleon","Starly","Staravia","Staraptor","Bidoof","Bibarel","Kricketot","Kricketune","Shinx","Luxio","Luxray","Budew","Roserade","Cranidos","Rampardos","Shieldon","Bastiodon","Burmy","Wormadam","Mothim","Combee","Vespiquen","Pachirisu","Buizel","Floatzel","Cherubi","Cherrim","Shellos","Gastrodon","Ambipom","Drifloon","Drifblim","Buneary","Lopunny","Mismagius","Honchkrow","Glameow","Purugly","Chingling","Stunky","Skuntank","Bronzor","Bronzong","Bonsly","Mime Jr.","Happiny","Chatot","Spiritomb","Gible","Gabite","Garchomp","Munchlax","Riolu","Lucario","Hippopotas","Hippowdon","Skorupi","Drapion","Croagunk","Toxicroak","Carnivine","Finneon","Lumineon","Mantyke","Snover","Abomasnow","Weavile","Magnezone","Lickilicky","Rhyperior","Tangrowth","Electivire","Magmortar","Togekiss","Yanmega","Leafeon","Glaceon","Gliscor","Mamoswine","Porygon-Z","Gallade","Probopass","Dusknoir","Froslass","Rotom","Uxie","Mesprit","Azelf","Dialga","Palkia","Heatran","Regigigas","Giratina","Cresselia","Phione","Manaphy","Darkrai","Shaymin","Arceus","Victini","Snivy","Servine","Serperior","Tepig","Pignite","Emboar","Oshawott","Dewott","Samurott","Patrat","Watchog","Lillipup","Herdier","Stoutland","Purrloin","Liepard","Pansage","Simisage","Pansear","Simisear","Panpour","Simipour","Munna","Musharna","Pidove","Tranquill","Unfezant","Blitzle","Zebstrika","Roggenrola","Boldore","Gigalith","Woobat","Swoobat","Drilbur","Excadrill","Audino","Timburr","Gurdurr","Conkeldurr","Tympole","Palpitoad","Seismitoad","Throh","Sawk","Sewaddle","Swadloon","Leavanny","Venipede","Whirlipede","Scolipede","Cottonee","Whimsicott","Petilil","Lilligant","Basculin","Sandile","Krokorok","Krookodile","Darumaka","Darmanitan","Maractus","Dwebble","Crustle","Scraggy","Scrafty","Sigilyph","Yamask","Cofagrigus","Tirtouga","Carracosta","Archen","Archeops","Trubbish","Garbodor","Zorua","Zoroark","Minccino","Cinccino","Gothita","Gothorita","Gothitelle","Solosis","Duosion","Reuniclus","Ducklett","Swanna","Vanillite","Vanillish","Vanilluxe","Deerling","Sawsbuck","Emolga","Karrablast","Escavalier","Foongus","Amoonguss","Frillish","Jellicent","Alomomola","Joltik","Galvantula","Ferroseed","Ferrothorn","Klink","Klang","Klinklang","Tynamo","Eelektrik","Eelektross","Elgyem","Beheeyem","Litwick","Lampent","Chandelure","Axew","Fraxure","Haxorus","Cubchoo","Beartic","Cryogonal","Shelmet","Accelgor","Stunfisk","Mienfoo","Mienshao","Druddigon","Golett","Golurk","Pawniard","Bisharp","Bouffalant","Rufflet","Braviary","Vullaby","Mandibuzz","Heatmor","Durant","Deino","Zweilous","Hydreigon","Larvesta","Volcarona","Cobalion","Terrakion","Virizion","Tornadus","Thundurus","Reshiram","Zekrom","Landorus","Kyurem","Keldeo","Meloetta","Genesect","Chespin","Quilladin","Chesnaught","Fennekin","Braixen","Delphox","Froakie","Frogadier","Greninja","Bunnelby","Diggersby","Fletchling","Fletchinder","Talonflame","Scatterbug","Spewpa","Vivillon","Litleo","Pyroar","Flabébé","Floette","Florges","Skiddo","Gogoat","Pancham","Pangoro","Furfrou","Espurr","Meowstic","Honedge","Doublade","Aegislash","Spritzee","Aromatisse","Swirlix","Slurpuff","Inkay","Malamar","Binacle","Barbaracle","Skrelp","Dragalge","Clauncher","Clawitzer","Helioptile","Heliolisk","Tyrunt","Tyrantrum","Amaura","Aurorus","Sylveon","Hawlucha","Dedenne","Carbink","Goomy","Sliggoo","Goodra","Klefki","Phantump","Trevenant","Pumpkaboo","Gourgeist","Bergmite","Avalugg","Noibat","Noivern","Xerneas","Yveltal","Zygarde","Diancie","Hoopa","Volcanion","Rowlet","Dartrix","Decidueye","Litten","Torracat","Incineroar","Popplio","Brionne","Primarina","Pikipek","Trumbeak","Toucannon","Yungoos","Gumshoos","Grubbin","Charjabug","Vikavolt","Crabrawler","Crabominable","Oricorio","Cutiefly","Ribombee","Rockruff","Lycanroc","Wishiwashi","Mareanie","Toxapex","Mudbray","Mudsdale","Dewpider","Araquanid","Fomantis","Lurantis","Morelull","Shiinotic","Salandit","Salazzle","Stufful","Bewear","Bounsweet","Steenee","Tsareena","Comfey","Oranguru","Passimian","Wimpod","Golisopod","Sandygast","Palossand","Pyukumuku","Type: Null","Silvally","Minior","Komala","Turtonator","Togedemaru","Mimikyu","Bruxish","Drampa","Dhelmise","Jangmo-o","Hakamo-o","Kommo-o","Tapu Koko","Tapu Lele","Tapu Bulu","Tapu Fini","Cosmog","Cosmoem","Solgaleo","Lunala","Nihilego","Buzzwole","Pheromosa","Xurkitree","Celesteela","Kartana","Guzzlord","Necrozma","Magearna","Marshadow","Poipole","Naganadel","Stakataka","Blacephalon","Zeraora","Meltan","Melmetal","Grookey","Thwackey","Rillaboom","Scorbunny","Raboot","Cinderace","Sobble","Drizzile","Inteleon","Skwovet","Greedent","Rookidee","Corvisquire","Corviknight","Blipbug","Dottler","Orbeetle","Nickit","Thievul","Gossifleur","Eldegoss","Wooloo","Dubwool","Chewtle","Drednaw","Yamper","Boltund","Rolycoly","Carkol","Coalossal","Applin","Flapple","Appletun","Silicobra","Sandaconda","Cramorant","Arrokuda","Barraskewda","Toxel","Toxtricity","Sizzlipede","Centiskorch","Clobbopus","Grapploct","Sinistea","Polteageist","Hatenna","Hattrem","Hatterene","Impidimp","Morgrem","Grimmsnarl","Obstagoon","Perrserker","Cursola","Sirfetch'd","Mr. Rime","Runerigus","Milcery","Alcremie","Falinks","Pincurchin","Snom","Frosmoth","Stonjourner","Eiscue","Indeedee","Morpeko","Cufant","Copperajah","Dracozolt","Arctozolt","Dracovish","Arctovish","Duraludon","Dreepy","Drakloak","Dragapult","Zacian","Zamazenta","Eternatus","Kubfu","Urshifu","Zarude","Regieleki","Regidrago","Glastrier","Spectrier","Calyrex","Wyrdeer","Kleavor","Ursaluna","Basculegion","Sneasler","Overqwil","Enamorus","Sprigatito","Floragato","Meowscarada","Fuecoco","Crocalor","Skeledirge","Quaxly","Quaxwell","Quaquaval","Lechonk","Oinkologne","Tarountula","Spidops","Nymble","Lokix","Pawmi","Pawmo","Pawmot","Tandemaus","Maushold","Fidough","Dachsbun","Smoliv","Dolliv","Arboliva","Squawkabilly","Nacli","Naclstack","Garganacl","Charcadet","Armarouge","Ceruledge","Tadbulb","Bellibolt","Wattrel","Kilowattrel","Maschiff","Mabosstiff","Shroodle","Grafaiai","Bramblin","Brambleghast","Toedscool","Toedscruel","Klawf","Capsakid","Scovillain","Rellor","Rabsca","Flittle","Espathra","Tinkatink","Tinkatuff","Tinkaton","Wiglett","Wugtrio","Bombirdier","Finizen","Palafin","Varoom","Revavroom","Cyclizar","Orthworm","Glimmet","Glimmora","Greavard","Houndstone","Flamigo","Cetoddle","Cetitan","Veluza","Dondozo","Tatsugiri","Annihilape","Clodsire","Farigiraf","Dudunsparce","Kingambit","Great Tusk","Scream Tail","Brute Bonnet","Flutter Mane","Slither Wing","Sandy Shocks","Iron Treads","Iron Bundle","Iron Hands","Iron Jugulis","Iron Moth","Iron Thorns","Frigibax","Arctibax","Baxcalibur","Gimmighoul","Gholdengo","Wo-Chien","Chien-Pao","Ting-Lu","Chi-Yu","Roaring Moon","Iron Valiant","Koraidon","Miraidon","Walking Wake","Iron Leaves","Dipplin","Poltchageist","Sinistcha","Okidogi","Munkidori","Fezandipiti","Ogerpon","Archaludon","Hydrapple","Gouging Fire","Raging Bolt","Iron Boulder","Iron Crown","Terapagos","Pecharunt"
+];
+
+const EVOLUTION_FAMILIES = {
+  "Bulbasaur":"Bulbasaur","Ivysaur":"Bulbasaur","Venusaur":"Bulbasaur",
+  "Charmander":"Charmander","Charmeleon":"Charmander","Charizard":"Charmander",
+  "Squirtle":"Squirtle","Wartortle":"Squirtle","Blastoise":"Squirtle",
+  "Caterpie":"Caterpie","Metapod":"Caterpie","Butterfree":"Caterpie",
+  "Weedle":"Weedle","Kakuna":"Weedle","Beedrill":"Weedle",
+  "Pidgey":"Pidgey","Pidgeotto":"Pidgey","Pidgeot":"Pidgey",
+  "Rattata":"Rattata","Raticate":"Rattata",
+  "Pikachu":"Pikachu","Raichu":"Pikachu","Pichu":"Pikachu",
+  "Oddish":"Oddish","Gloom":"Oddish","Vileplume":"Oddish","Bellossom":"Oddish",
+  "Poliwag":"Poliwag","Poliwhirl":"Poliwag","Poliwrath":"Poliwag","Politoed":"Poliwag",
+  "Abra":"Abra","Kadabra":"Abra","Alakazam":"Abra",
+  "Machop":"Machop","Machoke":"Machop","Machamp":"Machop",
+  "Gastly":"Gastly","Haunter":"Gastly","Gengar":"Gastly",
+  "Eevee":"Eevee","Vaporeon":"Eevee","Jolteon":"Eevee","Flareon":"Eevee","Espeon":"Eevee","Umbreon":"Eevee","Leafeon":"Eevee","Glaceon":"Eevee","Sylveon":"Eevee",
+  "Magikarp":"Magikarp","Gyarados":"Magikarp",
+  "Dratini":"Dratini","Dragonair":"Dratini","Dragonite":"Dratini",
+  "Chikorita":"Chikorita","Bayleef":"Chikorita","Meganium":"Chikorita",
+  "Cyndaquil":"Cyndaquil","Quilava":"Cyndaquil","Typhlosion":"Cyndaquil",
+  "Totodile":"Totodile","Croconaw":"Totodile","Feraligatr":"Totodile",
+  "Mareep":"Mareep","Flaaffy":"Mareep","Ampharos":"Mareep",
+  "Wooper":"Wooper","Quagsire":"Wooper","Clodsire":"Wooper",
+  "Treecko":"Treecko","Grovyle":"Treecko","Sceptile":"Treecko",
+  "Torchic":"Torchic","Combusken":"Torchic","Blaziken":"Torchic",
+  "Mudkip":"Mudkip","Marshtomp":"Mudkip","Swampert":"Mudkip",
+  "Ralts":"Ralts","Kirlia":"Ralts","Gardevoir":"Ralts","Gallade":"Ralts",
+  "Bagon":"Bagon","Shelgon":"Bagon","Salamence":"Bagon",
+  "Turtwig":"Turtwig","Grotle":"Turtwig","Torterra":"Turtwig",
+  "Chimchar":"Chimchar","Monferno":"Chimchar","Infernape":"Chimchar",
+  "Piplup":"Piplup","Prinplup":"Piplup","Empoleon":"Piplup",
+  "Snivy":"Snivy","Servine":"Snivy","Serperior":"Snivy",
+  "Tepig":"Tepig","Pignite":"Tepig","Emboar":"Tepig",
+  "Oshawott":"Oshawott","Dewott":"Oshawott","Samurott":"Oshawott",
+  "Chespin":"Chespin","Quilladin":"Chespin","Chesnaught":"Chespin",
+  "Fennekin":"Fennekin","Braixen":"Fennekin","Delphox":"Fennekin",
+  "Froakie":"Froakie","Frogadier":"Froakie","Greninja":"Froakie",
+  "Rowlet":"Rowlet","Dartrix":"Rowlet","Decidueye":"Rowlet",
+  "Litten":"Litten","Torracat":"Litten","Incineroar":"Litten",
+  "Popplio":"Popplio","Brionne":"Popplio","Primarina":"Popplio",
+  "Grookey":"Grookey","Thwackey":"Grookey","Rillaboom":"Grookey",
+  "Scorbunny":"Scorbunny","Raboot":"Scorbunny","Cinderace":"Scorbunny",
+  "Sobble":"Sobble","Drizzile":"Sobble","Inteleon":"Sobble",
+  "Sprigatito":"Sprigatito","Floragato":"Sprigatito","Meowscarada":"Sprigatito",
+  "Fuecoco":"Fuecoco","Crocalor":"Fuecoco","Skeledirge":"Fuecoco",
+  "Quaxly":"Quaxly","Quaxwell":"Quaxly","Quaquaval":"Quaxly"
+};
+
+function getEvolutionFamily(name) {
+  return EVOLUTION_FAMILIES[name] || name || '(none)';
+}
+let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let editingId = null;
+
+function setDisplayMode(mode) {
+  displayMode = mode;
+  localStorage.setItem('displayMode', mode);
+  renderList();
+}
+
+// Compress photos so they fit in Excel cells (Excel limit ~32k chars)
+function compressImage(dataUrl, cb) {
+  const img = new Image();
+  img.onload = () => {
+    const max = 280;
+    let w = img.width, h = img.height;
+    if (w > max || h > max) {
+      if (w > h) { h = Math.round(h * max / w); w = max; }
+      else { w = Math.round(w * max / h); h = max; }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    let quality = 0.45;
+    let result = canvas.toDataURL('image/jpeg', quality);
+    while (result.length > 30000 && quality > 0.15) {
+      quality -= 0.05;
+      result = canvas.toDataURL('image/jpeg', quality);
+    }
+    cb(result);
+  };
+  img.onerror = () => cb(dataUrl);
+  img.src = dataUrl;
+}
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().then(granted => {
+    if (!granted && navigator.storage.persisted) {
+      navigator.storage.persisted().then(isPersisted => {
+        if (!isPersisted) console.log('Persistent storage not granted — use Export before updates');
+      });
+    }
+  }).catch(() => {});
+}
+
+function excelDateToISO(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const n = Number(s);
+  if (!isNaN(n) && n > 1000) {
+    const d = new Date((n - 25569) * 86400 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+  return s;
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function slugify(name) {
+  return name.toLowerCase()
+    .replace(/♀/g, '-f')
+    .replace(/♂/g, '-m')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function getSpriteUrl(name) {
+  if (!name) return '';
+  const slug = slugify(name);
+  return `https://img.pokemondb.net/sprites/home/normal/${slug}.png`;
+}
+
+function updatePreview(name) {
+  const preview = document.getElementById('pokePreview');
+  if (!name) { preview.innerHTML = ''; return; }
+  const url = getSpriteUrl(name);
+  const page = `https://pokemondb.net/pokedex/${slugify(name)}`;
+  preview.innerHTML = `<img src="${url}" alt="${escapeHtml(name)}" onerror="this.style.display='none'"><div><strong>${escapeHtml(name)}</strong><br><a href="${page}" target="_blank">View on PokémonDB</a></div>`;
+}
+
+function getUniqueValues(field) {
+  const vals = items.map(i => (i[field] || '').trim()).filter(v => v);
+  return [...new Set(vals)];
+}
+
+function showFieldSuggestions(field, query) {
+  const box = document.getElementById('suggestions-' + field);
+  if (!box) return;
+  const q = query.trim().toLowerCase();
+  const uniques = getUniqueValues(field);
+  const matches = q.length === 0
+    ? uniques.slice(0, 10)
+    : uniques.filter(v => v.toLowerCase().includes(q)).slice(0, 10);
+
+  if (matches.length === 0) {
+    box.style.display = 'none';
+    return;
+  }
+  box.innerHTML = matches.map(v => `<div onclick="selectFieldValue('${field}', '${v.replace(/'/g, "\\'")}')">${escapeHtml(v)}</div>`).join('');
+  box.style.display = 'block';
+}
+
+function selectFieldValue(field, value) {
+  document.getElementById(field).value = value;
+  document.getElementById('suggestions-' + field).style.display = 'none';
+  if (field === 'set') {
+    const years = [...new Set(items.filter(i => i.set === value && i.year).map(i => i.year))];
+    const yearInput = document.getElementById('year');
+    const yearBox = document.getElementById('suggestions-year');
+    if (years.length === 1) {
+      yearInput.value = years[0];
+      yearBox.style.display = 'none';
+    } else if (years.length > 1) {
+      yearBox.innerHTML = years.map(y => `<div onclick="selectFieldValue('year', '${y}')">${y}</div>`).join('');
+      yearBox.style.display = 'block';
+      yearInput.focus();
+    }
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.form-group')) {
+    document.querySelectorAll('.suggestions').forEach(el => el.style.display = 'none');
+  }
+});
+function searchPokemon(query) {
+  const box = document.getElementById('suggestions');
+  const q = query.trim().toLowerCase();
+  if (q.length < 1) { box.style.display = 'none'; updatePreview(document.getElementById('pokeType').value); return; }
+  const matches = POKEMON_NAMES.filter(n => n.toLowerCase().includes(q)).slice(0, 12);
+  if (matches.length === 0 || (matches.length === 1 && matches[0].toLowerCase() === q)) {
+    box.style.display = 'none';
+    updatePreview(document.getElementById('pokeType').value);
+    return;
+  }
+  box.innerHTML = matches.map(n => `<div onclick="selectPokemon('${n.replace(/'/g, "\\'")}')">${n}</div>`).join('');
+  box.style.display = 'block';
+}
+
+function selectPokemon(name) {
+  const input = document.getElementById('pokeType');
+  input.value = name;
+  document.getElementById('suggestions').style.display = 'none';
+  updatePreview(name);
+  input.blur();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#pokeType') && !e.target.closest('#suggestions')) {
+    document.getElementById('suggestions').style.display = 'none';
+  }
+});
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  updateCount();
+  renderList();
+}
+
+function updateCount() {
+  document.getElementById('count').textContent = items.length;
+}
+
+function showHelp() {
+  document.getElementById('helpModal').style.display = 'flex';
+}
+function hideHelp() {
+  document.getElementById('helpModal').style.display = 'none';
+}
+
+function downloadApp() {
+  const html = document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Pokemon_tracker.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showTab(tab) {
+  document.getElementById('addView').style.display = tab === 'add' ? 'block' : 'none';
+  document.getElementById('listView').style.display = tab === 'list' ? 'block' : 'none';
+  document.getElementById('tabAdd').classList.toggle('active', tab === 'add');
+  document.getElementById('tabList').classList.toggle('active', tab === 'list');
+  if (tab === 'list') renderList();
+  if (tab === 'add' && !editingId) clearForm();
+}
+
+function toggleGrade() {
+  const graded = document.getElementById('graded').value;
+  const group = document.getElementById('gradeGroup');
+  group.style.display = graded === 'Yes' ? 'block' : 'none';
+  if (graded !== 'Yes') document.getElementById('grade').value = '';
+  const outGroup = document.getElementById('outForGradingGroup');
+  const showOut = graded === 'Yes' || graded === 'To Grade';
+  outGroup.style.display = showOut ? 'block' : 'none';
+  if (!showOut) document.getElementById('outForGrading').value = '';
+}
+
+function toggleSoldDate() {
+  const sold = document.getElementById('priceSold').value.trim();
+  const group = document.getElementById('soldDateGroup');
+  group.style.display = sold ? 'block' : 'none';
+  if (!sold) document.getElementById('soldDate').value = '';
+}
+
+let formTags = [];
+
+function filterFormTagSuggestions() {
+  const input = document.getElementById('tags');
+  const q = input.value.toLowerCase().trim();
+  const box = document.getElementById('formTagSuggestions');
+  if (!q) { box.style.display = 'none'; return; }
+  const matches = getAllTags().filter(t => t.toLowerCase().includes(q) && !formTags.includes(t));
+  if (matches.length === 0) { box.style.display = 'none'; return; }
+  box.innerHTML = matches.map(t => `<div style="padding:8px 12px; cursor:pointer;" onclick="addFormTag('${t.replace(/'/g, "\\'")}')">${escapeHtml(t)}</div>`).join('');
+  box.style.display = 'block';
+}
+
+function addFormTag(tag) {
+  if (!formTags.includes(tag)) formTags.push(tag);
+  document.getElementById('tags').value = '';
+  document.getElementById('formTagSuggestions').style.display = 'none';
+  renderFormTags();
+}
+
+function addFormTagFromInput() {
+  const val = document.getElementById('tags').value.trim();
+  if (val) addFormTag(val);
+}
+
+function removeFormTag(tag) {
+  formTags = formTags.filter(t => t !== tag);
+  renderFormTags();
+}
+
+function renderFormTags() {
+  const box = document.getElementById('formSelectedTags');
+  if (!box) return;
+  box.innerHTML = formTags.map(t => `<span style="background:#3d5a9e; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem;">${escapeHtml(t)} <span onclick="removeFormTag('${t.replace(/'/g, "\\'")}')" style="cursor:pointer;">✕</span></span>`).join('');
+}
+
+function clearForm() {
+  photoRemoved = { front: false, back: false };
+  formTags = [];
+  renderFormTags();
+  ['productType','set','year','pokeType','pricePaid','priceSold','grade','description','location','soldDate','tags'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('status').value = 'Owned';
+  document.getElementById('graded').value = '';
+  document.getElementById('condition').value = '';
+  document.getElementById('outForGrading').value = '';
+  document.getElementById('favorite').checked = false;
+  document.getElementById('photoFront').value = '';
+  document.getElementById('photoBack').value = '';
+  document.getElementById('photoFrontPreview').innerHTML = '';
+  document.getElementById('photoBackPreview').innerHTML = '';
+  editingId = null;
+  document.getElementById('editBanner').style.display = 'none';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('saveBtn').textContent = 'Save Entry';
+  document.getElementById('pokePreview').innerHTML = '';
+  toggleGrade();
+  document.querySelectorAll('.suggestions').forEach(el => el.style.display = 'none');
+  toggleSoldDate();
+  toggleGrade();
+}
+
+function saveItem() {
+  const frontInput = document.getElementById('photoFront');
+  const backInput = document.getElementById('photoBack');
+  const itemData = {
+    productType: document.getElementById('productType').value.trim(),
+    set: document.getElementById('set').value.trim(),
+    year: document.getElementById('year').value.trim(),
+    pokeType: document.getElementById('pokeType').value.trim(),
+    location: document.getElementById('location').value.trim(),
+    pricePaid: document.getElementById('pricePaid').value.trim(),
+    priceSold: document.getElementById('priceSold').value.trim(),
+    soldDate: document.getElementById('soldDate').value,
+    condition: document.getElementById('condition').value,
+    graded: document.getElementById('graded').value,
+    grade: document.getElementById('grade').value.trim(),
+    outForGrading: document.getElementById('outForGrading').value,
+    favorite: document.getElementById('favorite').checked,
+    status: document.getElementById('status').value,
+    tags: formTags.join(', '),
+    description: document.getElementById('description').value.trim(),
+    date: todayISO()
+  };
+
+  const finishSave = (frontData, backData) => {
+    if (frontData) itemData.photoFront = frontData;
+    if (backData) itemData.photoBack = backData;
+
+    if (!itemData.productType && !itemData.pokeType) {
+      alert('Please enter at least a Product type or Pokémon type.');
+      return;
+    }
+
+    // Simple duplicate check
+    if (!editingId) {
+      const dup = items.find(i =>
+        i.productType === itemData.productType &&
+        i.pokeType === itemData.pokeType &&
+        i.set === itemData.set &&
+        i.year === itemData.year
+      );
+      if (dup && !confirm('This looks similar to an existing entry. Save anyway?')) return;
+    }
+
+    if (editingId) {
+      const idx = items.findIndex(i => i.id === editingId);
+      if (idx !== -1) {
+        items[idx] = { ...items[idx], ...itemData, date: items[idx].date || todayISO() };
+        if (photoRemoved.front) items[idx].photoFront = '';
+        else if (!frontData && items[idx].photoFront) items[idx].photoFront = items[idx].photoFront;
+        if (photoRemoved.back) items[idx].photoBack = '';
+        else if (!backData && items[idx].photoBack) items[idx].photoBack = items[idx].photoBack;
+      }
+      alert('Entry updated!');
+    } else {
+      items.unshift({ id: Date.now(), ...itemData, created: new Date().toISOString() });
+      alert('Entry saved!');
+    }
+
+    save();
+    clearForm();
+    showTab('list');
+  };
+
+  const readFile = (input, cb) => {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        compressImage(e.target.result, compressed => cb(compressed));
+      };
+      reader.readAsDataURL(input.files[0]);
+    } else {
+      cb(null);
+    }
+  };
+
+  readFile(frontInput, frontData => {
+    readFile(backInput, backData => finishSave(frontData, backData));
+  });
+}
+
+function cancelEdit() {
+  clearForm();
+  showTab('list');
+}
+
+function startEdit(id) {
+  photoRemoved = { front: false, back: false };
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  editingId = id;
+  document.getElementById('productType').value = item.productType || '';
+  document.getElementById('set').value = item.set || '';
+  document.getElementById('year').value = item.year || '';
+  document.getElementById('pokeType').value = item.pokeType || '';
+  document.getElementById('location').value = item.location || '';
+  document.getElementById('pricePaid').value = item.pricePaid || '';
+  document.getElementById('priceSold').value = item.priceSold || '';
+  toggleSoldDate();
+  document.getElementById('soldDate').value = item.soldDate || '';
+  document.getElementById('condition').value = item.condition || '';
+  document.getElementById('graded').value = item.graded || '';
+  toggleGrade();
+  document.getElementById('grade').value = item.grade || '';
+  document.getElementById('outForGrading').value = item.outForGrading || '';
+  document.getElementById('status').value = item.status || 'Owned';
+  formTags = (item.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  renderFormTags();
+  document.getElementById('tags').value = '';
+  document.getElementById('favorite').checked = !!item.favorite;
+  document.getElementById('description').value = item.description || '';
+  const frontPreview = document.getElementById('photoFrontPreview');
+  const backPreview = document.getElementById('photoBackPreview');
+  frontPreview.innerHTML = item.photoFront ? `<div style="position:relative; display:inline-block;"><img src="${item.photoFront}" style="max-width:100%; max-height:150px; border-radius:8px;"><button onclick="removePhoto('front')" style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button></div>` : '';
+  backPreview.innerHTML = item.photoBack ? `<div style="position:relative; display:inline-block;"><img src="${item.photoBack}" style="max-width:100%; max-height:150px; border-radius:8px;"><button onclick="removePhoto('back')" style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button></div>` : '';
+  updatePreview(item.pokeType);
+  document.getElementById('editBanner').style.display = 'block';
+  document.getElementById('cancelEditBtn').style.display = 'block';
+  document.getElementById('saveBtn').textContent = 'Update Entry';
+  showTab('add');
+  document.querySelectorAll('.field-clear').forEach(btn => {
+    const input = btn.previousElementSibling || btn.parentElement.querySelector('input');
+    if (input) btn.style.display = input.value ? 'block' : 'none';
+  });
+}
+
+function renderList() {
+  const container = document.getElementById('listContainer');
+  container.style.display = displayMode === 'grid' ? 'grid' : 'block';
+  container.style.gridTemplateColumns = displayMode === 'grid' ? '1fr 1fr' : '';
+  container.style.gap = displayMode === 'grid' ? '8px' : '';
+  const totalsBar = document.getElementById('totalsBar');
+  const query = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+  const filterCond = document.getElementById('filterCondition')?.value || '';
+  const filterGraded = document.getElementById('filterGraded')?.value || '';
+  const filterStatus = document.getElementById('filterStatus')?.value || '';
+  const groupBy = document.getElementById('groupBy')?.value || '';
+  const sortBy = document.getElementById('sortBy')?.value || 'date-desc';
+
+  let filtered = items;
+  if (selectedTags.length > 0) {
+    filtered = filtered.filter(item => {
+      const itemTags = (item.tags || '').split(',').map(t => t.trim().toLowerCase());
+      return selectedTags.every(t => itemTags.includes(t.toLowerCase()));
+    });
+  }
+  if (query) {
+    filtered = filtered.filter(item => {
+      const haystack = [
+        item.productType, item.set, item.year, item.pokeType, item.pricePaid, item.priceSold, item.condition,
+        item.graded, item.grade, item.outForGrading, item.description, item.date, item.location, item.quantity,
+        item.status, item.tags
+      ].join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+  if (filterCond) filtered = filtered.filter(i => i.condition === filterCond);
+  if (filterGraded) filtered = filtered.filter(i => i.graded === filterGraded);
+  if (filterStatus) filtered = filtered.filter(i => (i.status || 'Owned') === filterStatus);
+
+  // Totals
+  const totalItems = filtered.length;
+  const totalPaid = filtered.reduce((sum, i) => sum + (parseFloat(i.pricePaid) || 0), 0);
+  const totalSold = filtered.reduce((sum, i) => sum + (parseFloat(i.priceSold) || 0), 0);
+  const totalProfit = totalSold - totalPaid;
+  const outForGrading = filtered.filter(i => i.outForGrading === 'Yes').length;
+  totalsBar.innerHTML = `
+    <span><strong>Items:</strong> ${totalItems}</span>
+    <span><strong>Paid:</strong> $${totalPaid.toFixed(2)}</span>
+    <span><strong>Sold:</strong> $${totalSold.toFixed(2)}</span>
+    <span><strong>Profit:</strong> $${totalProfit.toFixed(2)}</span>
+    ${outForGrading ? `<span><strong>Out for grading:</strong> ${outForGrading}</span>` : ''}
+  `;
+
+  // Sort
+  filtered = [...filtered].sort((a, b) => {
+    if (sortBy === 'favorite') {
+      if (a.favorite && !b.favorite) return -1;
+      if (!a.favorite && b.favorite) return 1;
+    }
+    if (sortBy === 'name') {
+      const na = (a.productType || a.pokeType || '').toLowerCase();
+      const nb = (b.productType || b.pokeType || '').toLowerCase();
+      return na.localeCompare(nb);
+    }
+    if (sortBy === 'price-desc') return (parseFloat(b.pricePaid) || 0) - (parseFloat(a.pricePaid) || 0);
+    if (sortBy === 'price-asc') return (parseFloat(a.pricePaid) || 0) - (parseFloat(b.pricePaid) || 0);
+    if (sortBy === 'date-asc') return (a.date || '').localeCompare(b.date || '');
+    return (b.date || '').localeCompare(a.date || '');
+    return (b.id || 0) - (a.id || 0);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty">${items.length === 0 ? 'No items yet.<br>Switch to “+ Add Item” to start your collection.' : 'No matches found.'}</div>`;
+    return;
+  }
+
+  const renderCard = (item) => {
+    const img = item.pokeType ? `<img src="${getSpriteUrl(item.pokeType)}" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:6px;" onerror="this.style.display='none'">` : '';
+    const star = item.favorite ? '★ ' : '';
+    const paid = parseFloat(item.pricePaid) || 0;
+    const sold = parseFloat(item.priceSold) || 0;
+    const profit = (item.priceSold && item.pricePaid) ? (sold - paid).toFixed(2) : null;
+    const profitHtml = profit !== null ? `<div><strong>Profit:</strong> ${profit >= 0 ? '+' : ''}${profit}</div>` : '';
+    const frontHtml = item.photoFront ? `<div style="margin-top:8px;"><strong>Front:</strong><br><img src="${item.photoFront}" style="max-width:100%; max-height:200px; border-radius:8px; cursor:pointer;" onclick="event.stopPropagation(); openPhoto('${item.photoFront}')"></div>` : '';
+    const backHtml = item.photoBack ? `<div style="margin-top:8px;"><strong>Back:</strong><br><img src="${item.photoBack}" style="max-width:100%; max-height:200px; border-radius:8px; cursor:pointer;" onclick="event.stopPropagation(); openPhoto('${item.photoBack}')"></div>` : '';
+    return `
+    <div class="card" id="card-${item.id}">
+      <div class="card-header" onclick="toggleCard(${item.id})">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" class="item-check" data-id="${item.id}" onclick="event.stopPropagation()" style="width:auto;">
+          <div>
+            <div class="card-title">${img}<span onclick="event.stopPropagation(); toggleFavorite(${item.id})" style="cursor:pointer; margin-right:4px; color:${item.favorite ? '#ffd54f' : '#888'};">${item.favorite ? '★' : '☆'}</span>${escapeHtml(item.productType || item.pokeType || 'Untitled')}</div>
+            <div class="card-sub">
+              ${item.status ? escapeHtml(item.status) + ' · ' : ''}
+              ${item.set ? escapeHtml(item.set) + ' · ' : ''}
+              ${item.year || ''}
+              ${item.condition ? ' · ' + (item.condition.match(/\(([^)]+)\)/) ? item.condition.match(/\(([^)]+)\)/)[1] : item.condition) : ''}
+              ${item.pokeType && item.productType ? ' · ' + escapeHtml(item.pokeType) : ''}
+            </div>
+          </div>
+        </div>
+        <div style="font-size:1.2rem;">▾</div>
+      </div>
+      <div class="card-body">
+        ${item.location ? `<div><strong>Location:</strong> ${escapeHtml(item.location)}</div>` : ''}
+        ${item.tags ? `<div><strong>Tags:</strong> ${escapeHtml(item.tags)}</div>` : ''}
+        ${item.pricePaid ? `<div><strong>Price paid:</strong> ${escapeHtml(item.pricePaid)}</div>` : ''}
+        ${item.priceSold ? `<div><strong>Price sold:</strong> ${escapeHtml(item.priceSold)}</div>` : ''}
+        ${profitHtml}
+        ${item.soldDate ? `<div><strong>Sold date:</strong> ${item.soldDate}</div>` : ''}
+        ${item.condition ? `<div><strong>Condition:</strong> ${escapeHtml(item.condition)}</div>` : ''}
+        ${item.graded ? `<div><strong>Graded:</strong> ${item.graded}</div>` : ''}
+        ${item.grade ? `<div><strong>Grade:</strong> ${escapeHtml(item.grade)}</div>` : ''}
+        ${item.outForGrading ? `<div><strong>Out for grading:</strong> ${item.outForGrading}</div>` : ''}
+        ${item.date ? `<div><strong>Added:</strong> ${item.date}</div>` : ''}
+        ${frontHtml}
+        ${backHtml}
+        ${item.description ? `<div style="margin-top:8px;"><strong>Description:</strong><br>${escapeHtml(item.description).replace(/\n/g,'<br>')}</div>` : ''}
+        <div style="margin-top:12px; display:flex; gap:6px;">
+          <button class="btn btn-secondary btn-small" onclick="event.stopPropagation(); startEdit(${item.id})" style="flex:1; padding:6px 4px; font-size:0.75rem;">Edit</button>
+          <button class="btn btn-secondary btn-small" onclick="event.stopPropagation(); quickCopy(${item.id})" style="flex:1; padding:6px 4px; font-size:0.75rem;">Copy</button>
+          <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteItem(${item.id})" style="flex:1; padding:6px 4px; font-size:0.75rem;">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  if (groupBy) {
+    const groups = {};
+    filtered.forEach(item => {
+      const key = groupBy === 'favorite' ? (item.favorite ? 'Favorites' : 'Other')
+        : groupBy === 'evolution' ? getEvolutionFamily(item.pokeType)
+        : (item[groupBy] || '(none)');
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    });
+    container.innerHTML = Object.keys(groups).sort((a, b) => {
+      if (a === 'Favorites') return -1;
+      if (b === 'Favorites') return 1;
+      return a.localeCompare(b);
+    }).map(key => `
+      <div style="grid-column:1/-1; margin:16px 0 8px; font-weight:700; color:var(--poke-yellow);">${escapeHtml(key)} (${groups[key].length})</div>
+      ${groups[key].map(renderCard).join('')}
+    `).join('');
+  } else {
+    container.innerHTML = filtered.map(renderCard).join('');
+  }
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (card) card.classList.toggle('open');
+}
+
+function openPhoto(src) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;';
+  overlay.onclick = () => overlay.remove();
+  overlay.innerHTML = `<img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+  document.body.appendChild(overlay);
+}
+
+function quickCopy(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  startEdit(id);
+  editingId = null;
+  document.getElementById('editBanner').style.display = 'none';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('saveBtn').textContent = 'Save Entry';
+  document.getElementById('pricePaid').value = '';
+  document.getElementById('priceSold').value = '';
+  document.getElementById('condition').value = '';
+  toggleSoldDate();
+  alert('Copied — edit any fields and save as a new entry.');
+}
+
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll('.item-check:checked')).map(cb => Number(cb.dataset.id));
+}
+
+function exportSelected() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) { alert('Select one or more items first.'); return; }
+  const selected = items.filter(i => ids.includes(i.id));
+  const data = selected.map(item => ({
+    'Product type': item.productType || '',
+    'Set': item.set || '',
+    'Year released': item.year || '',
+    'Pokémon type': item.pokeType || '',
+    'Quantity': item.quantity || '',
+    'Location': item.location || '',
+    'Price paid': item.pricePaid || '',
+    'Price sold': item.priceSold || '',
+    'Sold date': item.soldDate || '',
+    'Condition': item.condition || '',
+    'Status': item.status || '',
+    'Tags': item.tags || '',
+    'Graded': item.graded || '',
+    'Grade': item.grade || '',
+    'Out for grading': item.outForGrading || '',
+    'Favorite': item.favorite ? 'Yes' : '',
+    'Date': item.date || '',
+    'Description': item.description || '',
+    'Photo front': item.photoFront || '',
+    'Photo back': item.photoBack || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Selected');
+  XLSX.writeFile(wb, 'Pokemon_selected.xlsx');
+}
+
+function selectAll() {
+  document.querySelectorAll('#listContainer .item-check').forEach(cb => cb.checked = true);
+}
+
+function deselectAll() {
+  document.querySelectorAll('#listContainer .item-check').forEach(cb => cb.checked = false);
+}
+
+function deleteSelected() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) { alert('Select one or more items first.'); return; }
+  if (!confirm(`Delete ${ids.length} selected item${ids.length > 1 ? 's' : ''}?`)) return;
+  items = items.filter(i => !ids.includes(i.id));
+  save();
+  alert(`Deleted ${ids.length} item${ids.length > 1 ? 's' : ''}.`);
+}
+
+function expandAll() {
+  document.querySelectorAll('#listContainer .card').forEach(card => card.classList.add('open'));
+}
+
+function collapseAll() {
+  document.querySelectorAll('#listContainer .card').forEach(card => card.classList.remove('open'));
+}
+
+let lastDeleted = null;
+function toggleFavorite(id) {
+  const item = items.find(i => i.id === id);
+  if (item) {
+    item.favorite = !item.favorite;
+    save();
+  }
+}
+
+function deleteItem(id) {
+  if (confirm('Delete this entry?')) {
+    const idx = items.findIndex(i => i.id === id);
+    if (idx !== -1) {
+      lastDeleted = items[idx];
+      items.splice(idx, 1);
+      save();
+      showUndoToast();
+      // Force re-render after confirm dialog closes (iOS quirk)
+      setTimeout(() => renderList(), 50);
+    }
+  }
+}
+
+function showUndoToast() {
+  const existing = document.getElementById('undoToast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'undoToast';
+  toast.style.cssText = 'position:fixed; bottom:120px; left:50%; transform:translateX(-50%); background:#333; color:white; padding:12px 20px; border-radius:10px; z-index:200; display:flex; gap:12px; align-items:center;';
+  toast.innerHTML = 'Deleted <button onclick="undoDelete()" style="background:var(--poke-yellow); border:none; padding:6px 12px; border-radius:6px; font-weight:700;">Undo</button>';
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
+}
+
+function undoDelete() {
+  if (lastDeleted) {
+    items.unshift(lastDeleted);
+    lastDeleted = null;
+    save();
+    const toast = document.getElementById('undoToast');
+    if (toast) toast.remove();
+  }
+}
+
+function toggleSearchClear() {
+  const input = document.getElementById('searchInput');
+  const btn = document.getElementById('searchClear');
+  if (btn) btn.style.display = input.value ? 'block' : 'none';
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  renderList();
+}
+
+let selectedTags = [];
+
+function getAllTags() {
+  const set = new Set();
+  items.forEach(i => {
+    if (i.tags) i.tags.split(',').forEach(t => { const s = t.trim(); if (s) set.add(s); });
+  });
+  return Array.from(set).sort();
+}
+
+function filterTagSuggestions() {
+  const input = document.getElementById('tagSearchInput');
+  const q = input.value.toLowerCase().trim();
+  const clearBtn = document.getElementById('tagSearchClear');
+  clearBtn.style.display = q ? 'block' : 'none';
+  const box = document.getElementById('tagSuggestions');
+  if (!q) { box.style.display = 'none'; return; }
+  const matches = getAllTags().filter(t => t.toLowerCase().includes(q) && !selectedTags.includes(t));
+  if (matches.length === 0) { box.style.display = 'none'; return; }
+  box.innerHTML = matches.map(t => `<div style="padding:8px 12px; cursor:pointer;" onclick="addTag('${t.replace(/'/g, "\\'")}')">${escapeHtml(t)}</div>`).join('');
+  box.style.display = 'block';
+}
+
+function addTag(tag) {
+  if (!selectedTags.includes(tag)) selectedTags.push(tag);
+  document.getElementById('tagSearchInput').value = '';
+  document.getElementById('tagSuggestions').style.display = 'none';
+  document.getElementById('tagSearchClear').style.display = 'none';
+  renderSelectedTags();
+  renderList();
+}
+
+function addTagFromInput() {
+  const val = document.getElementById('tagSearchInput').value.trim();
+  if (val) addTag(val);
+}
+
+function removeTag(tag) {
+  selectedTags = selectedTags.filter(t => t !== tag);
+  renderSelectedTags();
+  renderList();
+}
+
+function clearTagSearch() {
+  document.getElementById('tagSearchInput').value = '';
+  document.getElementById('tagSuggestions').style.display = 'none';
+  document.getElementById('tagSearchClear').style.display = 'none';
+}
+
+function renderSelectedTags() {
+  const box = document.getElementById('selectedTags');
+  box.innerHTML = selectedTags.map(t => `<span style="background:#3d5a9e; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem;">${escapeHtml(t)} <span onclick="removeTag('${t.replace(/'/g, "\\'")}')" style="cursor:pointer;">✕</span></span>`).join('');
+}
+
+function clearAll() {
+  const addView = document.getElementById('addView');
+  const onAdd = addView && addView.style.display !== 'none';
+  if (onAdd) {
+    clearForm();
+    return;
+  }
+  // On collection page: clear filters and search
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  document.getElementById('filterCondition').value = '';
+  selectedTags = [];
+  renderSelectedTags();
+  document.getElementById('filterGraded').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('groupBy').value = '';
+  document.getElementById('sortBy').value = 'date-desc';
+  renderList();
+}
+
+function getExportData() {
+  return items.map(item => ({
+    'Product type': item.productType || '',
+    'Set': item.set || '',
+    'Year released': item.year || '',
+    'Pokémon type': item.pokeType || '',
+    'Quantity': item.quantity || '',
+    'Location': item.location || '',
+    'Price paid': item.pricePaid || '',
+    'Price sold': item.priceSold || '',
+    'Sold date': item.soldDate || '',
+    'Condition': item.condition || '',
+    'Status': item.status || '',
+    'Tags': item.tags || '',
+    'Graded': item.graded || '',
+    'Grade': item.grade || '',
+    'Out for grading': item.outForGrading || '',
+    'Favorite': item.favorite ? 'Yes' : '',
+    'Date': item.date || '',
+    'Description': item.description || '',
+    'Photo front': item.photoFront || '',
+    'Photo back': item.photoBack || ''
+  }));
+}
+
+function downloadWorkbook(filename) {
+  if (items.length === 0) { alert('Nothing to export yet.'); return; }
+  const needsCompress = items.some(i => (i.photoFront && i.photoFront.length > 30000) || (i.photoBack && i.photoBack.length > 30000));
+  if (needsCompress) {
+    showStatus('Compressing photos... please wait');
+    let pending = 0;
+    let done = 0;
+    const total = items.reduce((n, i) => n + ((i.photoFront && i.photoFront.length > 30000) ? 1 : 0) + ((i.photoBack && i.photoBack.length > 30000) ? 1 : 0), 0);
+    items.forEach(item => {
+      ['photoFront', 'photoBack'].forEach(key => {
+        if (item[key] && item[key].length > 30000) {
+          pending++;
+          compressImage(item[key], (compressed) => {
+            item[key] = compressed;
+            pending--;
+            done++;
+            showStatus(`Compressing photos... ${done}/${total}`);
+            if (pending === 0) { save(); hideStatus(); doExport(filename); }
+          });
+        }
+      });
+    });
+    if (pending === 0) { hideStatus(); doExport(filename); }
+  } else {
+    doExport(filename);
+  }
+}
+
+function showStatus(msg) {
+  let el = document.getElementById('statusToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'statusToast';
+    el.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 20px; border-radius:8px; z-index:300; font-size:0.9rem;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideStatus() {
+  const el = document.getElementById('statusToast');
+  if (el) el.style.display = 'none';
+}
+
+function doExport(filename) {
+  try {
+    const data = getExportData();
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pokémon Non-TCG');
+    XLSX.writeFile(wb, filename);
+  } catch (err) {
+    alert('Export failed: ' + err.message);
+  }
+}
+
+function exportExcel() {
+  downloadWorkbook('Pokemon_licensed_non_TCG.xlsx');
+}
+
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval: ''});
+
+      if (rows.length === 0) { alert('No data found in the file.'); return; }
+
+      const imported = rows.map(row => ({
+        id: Date.now() + Math.random(),
+        productType: String(row['Product type'] || '').trim(),
+        set: String(row['Set'] || '').trim(),
+        year: String(row['Year released'] || '').trim(),
+        pokeType: String(row['Pokémon type'] || '').trim(),
+        location: String(row['Location'] || '').trim(),
+        pricePaid: String(row['Price paid'] || '').trim(),
+        priceSold: String(row['Price sold'] || '').trim(),
+        soldDate: excelDateToISO(row['Sold date']),
+        condition: String(row['Condition'] || '').trim(),
+        status: String(row['Status'] || '').trim(),
+        tags: String(row['Tags'] || '').trim(),
+        graded: String(row['Graded'] || '').trim(),
+        grade: String(row['Grade'] || '').trim(),
+        outForGrading: String(row['Out for grading'] || '').trim(),
+        favorite: String(row['Favorite'] || '').toLowerCase() === 'yes',
+        date: excelDateToISO(row['Date']) || todayISO(),
+        description: String(row['Description'] || '').trim(),
+        photoFront: String(row['Photo front'] || '').trim(),
+        photoBack: String(row['Photo back'] || '').trim(),
+        created: new Date().toISOString()
+      })).filter(item => item.productType || item.pokeType);
+
+      if (imported.length === 0) { alert('No valid rows found.'); return; }
+
+      const doImport = (replace) => {
+        items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let added = imported.length;
+        if (replace) {
+          items = imported;
+        } else {
+          const isDup = (a, b) =>
+            a.productType === b.productType &&
+            a.pokeType === b.pokeType &&
+            a.set === b.set &&
+            a.year === b.year &&
+            a.date === b.date &&
+            a.description === b.description;
+          const matched = new Set();
+          const newOnes = imported.filter(imp => {
+            const idx = items.findIndex((existing, i) => !matched.has(i) && isDup(imp, existing));
+            if (idx !== -1) { matched.add(idx); return false; }
+            return true;
+          });
+          added = newOnes.length;
+          items = [...newOnes, ...items];
+          if (newOnes.length < imported.length) {
+            alert(`Skipped ${imported.length - newOnes.length} duplicates.`);
+          }
+        }
+        save();
+        alert(`Imported ${added} items.`);
+        showTab('list');
+        document.getElementById('importModal').style.display = 'none';
+      };
+
+      const modal = document.getElementById('importModal');
+      document.getElementById('importMsg').innerHTML = `This file has ${imported.length} items.<br><br><strong>Add</strong> only adds new entries (duplicates are skipped).<br><strong>Replace</strong> overwrites everything.`;
+      document.getElementById('importAddBtn').onclick = () => doImport(false);
+      document.getElementById('importReplaceBtn').onclick = () => doImport(true);
+      modal.style.display = 'flex';
+    } catch (err) {
+      alert('Could not read the file. Make sure it is a valid Excel file.');
+    }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, m => ({
+    '&':'&','<':'<','>':'>','"':'"',"'":'&#39;'
+  }[m]));
+}
+
+document.getElementById('photoFront').addEventListener('change', function(e) {
+  const preview = document.getElementById('photoFrontPreview');
+  if (this.files && this.files[0]) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      preview.innerHTML = `<div style="position:relative; display:inline-block;"><img src="${ev.target.result}" style="max-width:100%; max-height:150px; border-radius:8px;"><button onclick="removePhoto('front')" style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button></div>`;
+    };
+    reader.readAsDataURL(this.files[0]);
+  } else {
+    preview.innerHTML = '';
+  }
+});
+document.getElementById('photoBack').addEventListener('change', function(e) {
+  const preview = document.getElementById('photoBackPreview');
+  if (this.files && this.files[0]) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      preview.innerHTML = `<div style="position:relative; display:inline-block;"><img src="${ev.target.result}" style="max-width:100%; max-height:150px; border-radius:8px;"><button onclick="removePhoto('back')" style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button></div>`;
+    };
+    reader.readAsDataURL(this.files[0]);
+  } else {
+    preview.innerHTML = '';
+  }
+});
+
+let photoRemoved = { front: false, back: false };
+
+function removePhoto(which) {
+  if (which === 'front') {
+    document.getElementById('photoFront').value = '';
+    document.getElementById('photoFrontPreview').innerHTML = '';
+    photoRemoved.front = true;
+  } else {
+    document.getElementById('photoBack').value = '';
+    document.getElementById('photoBackPreview').innerHTML = '';
+    photoRemoved.back = true;
+  }
+}
+
+// Move to next field on Enter (except in textarea)
+const formFields = [
+  'productType', 'set', 'year', 'pokeType', 'location',
+  'pricePaid', 'priceSold', 'soldDate', 'status', 'tags',
+  'condition', 'graded', 'grade', 'outForGrading', 'favorite',
+  'photoFront', 'photoBack', 'description'
+];
+
+document.querySelectorAll('#addView input, #addView select, #addView textarea').forEach(el => {
+  el.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && this.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      document.querySelectorAll('.suggestions').forEach(el => el.style.display = 'none');
+      if (this.id === 'set') {
+        const typed = this.value.trim();
+        const match = items.find(i => i.set && i.set.toLowerCase() === typed.toLowerCase());
+        if (match) selectFieldValue('set', match.set);
+      }
+      this.blur();
+      const currentIndex = formFields.indexOf(this.id);
+      if (currentIndex !== -1 && currentIndex < formFields.length - 1) {
+        const nextId = formFields[currentIndex + 1];
+        const nextEl = document.getElementById(nextId);
+        if (nextEl && nextEl.offsetParent !== null) {
+          setTimeout(() => nextEl.focus(), 50);
+        }
+      }
+    }
+  });
+});
+
+// Initialize
+updateCount();
+toggleSoldDate();
+toggleGrade();
+const dm = document.getElementById('displayMode');
+if (dm) dm.value = displayMode;
+
+function setupClearButtons() {
+  const ids = ['productType','set','year','pokeType','location','pricePaid','priceSold','tags','grade'];
+  ids.forEach(id => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    const parent = input.parentElement;
+    if (parent.querySelector('.field-clear')) return;
+    parent.style.position = 'relative';
+    input.style.paddingRight = (id === 'pricePaid' || id === 'priceSold') ? '36px' : '28px';
+    const btn = document.createElement('button');
+    btn.className = 'field-clear';
+    btn.innerHTML = '✕';
+    btn.style.cssText = 'position:absolute; right:' + ((id === 'pricePaid' || id === 'priceSold') ? '4px' : '8px') + '; top:50%; transform:translateY(-50%); background:none; border:none; color:#888; font-size:1rem; display:none; cursor:pointer; z-index:2;';
+    btn.onclick = (e) => { e.preventDefault(); input.value = ''; btn.style.display = 'none'; input.focus(); if (id === 'priceSold') toggleSoldDate(); if (id === 'pokeType') { document.getElementById('suggestions').style.display = 'none'; updatePreview(''); } };
+    parent.appendChild(btn);
+    input.addEventListener('input', () => { btn.style.display = input.value ? 'block' : 'none'; });
+    input.addEventListener('focus', () => { btn.style.display = input.value ? 'block' : 'none'; });
+  });
+}
+setupClearButtons();
+
+window.addEventListener('scroll', function() {
+  const btn = document.getElementById('backToTop');
+  if (btn) btn.style.display = window.scrollY > 200 ? 'block' : 'none';
+});
+</script>
+</body>
+</html>
