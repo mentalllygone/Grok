@@ -104,14 +104,14 @@ textarea { min-height: 90px; resize: vertical; }
       <label>Price paid</label>
       <div style="display:flex; align-items:center; background:#2c2c2e; border-radius:10px; border:1px solid var(--border);">
         <span style="padding:0 8px; color:#888;">$</span>
-        <input type="text" id="pricePaid" placeholder="0.00" style="border:none; background:transparent; flex:1; padding:12px 12px 12px 0;">
+        <input type="text" id="pricePaid" placeholder="" style="border:none; background:transparent; flex:1; padding:12px 12px 12px 0;">
       </div>
     </div>
     <div class="form-group">
       <label>Price sold</label>
       <div style="display:flex; align-items:center; background:#2c2c2e; border-radius:10px; border:1px solid var(--border);">
         <span style="padding:0 8px; color:#888;">$</span>
-        <input type="text" id="priceSold" placeholder="0.00" oninput="toggleSoldDate()" style="border:none; background:transparent; flex:1; padding:12px 12px 12px 0;">
+        <input type="text" id="priceSold" placeholder="" oninput="toggleSoldDate()" style="border:none; background:transparent; flex:1; padding:12px 12px 12px 0;">
       </div>
     </div>
   </div>
@@ -121,7 +121,7 @@ textarea { min-height: 90px; resize: vertical; }
   </div>
   <div class="form-group">
     <label>Status</label>
-    <select id="status">
+    <select id="status" style="padding-right:28px;">
       <option value="Owned">Owned</option>
       <option value="For Sale">For Sale</option>
       <option value="Sold">Sold</option>
@@ -820,9 +820,11 @@ function renderList() {
   });
 
   if (filtered.length === 0) {
+    document.getElementById('totalsBar').style.opacity = '0.5';
     container.innerHTML = `<div class="empty">${items.length === 0 ? 'No items yet.<br>Switch to “+ Add Item” to start your collection.' : 'No matches found.'}</div>`;
     return;
   }
+  document.getElementById('totalsBar').style.opacity = '1';
 
   const renderCard = (item) => {
     const img = item.pokeType ? `<img src="${getSpriteUrl(item.pokeType)}" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:6px;" onerror="this.style.display='none'">` : '';
@@ -839,7 +841,7 @@ function renderList() {
         <div style="display:flex; align-items:center; gap:8px;">
           <input type="checkbox" class="item-check" data-id="${item.id}" onclick="event.stopPropagation()" style="width:auto;">
           <div>
-            <div class="card-title">${img}<span onclick="event.stopPropagation(); toggleFavorite(${item.id})" style="cursor:pointer; margin-right:4px; color:${item.favorite ? '#ffd54f' : '#888'};">${item.favorite ? '★' : '☆'}</span>${escapeHtml(item.productType || item.pokeType || 'Untitled')}</div>
+            <div class="card-title">${img}<span onclick="event.stopPropagation(); toggleFavorite(${item.id})" style="cursor:pointer; margin-right:4px; color:${item.favorite ? '#ffd54f' : '#888'};">${item.favorite ? '★' : '☆'}</span>${escapeHtml(item.pokeType || item.productType || 'Untitled')}</div>
             <div class="card-sub">
               ${item.status ? escapeHtml(item.status) + ' · ' : ''}
               ${item.set ? escapeHtml(item.set) + ' · ' : ''}
